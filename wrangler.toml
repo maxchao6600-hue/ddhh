@@ -1,5 +1,5 @@
 name = "ddhh"
-main = ".open-next/worker.js"
+main = "workers/cloudflare.mjs"
 compatibility_date = "2026-11-06"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 upload_source_maps = true

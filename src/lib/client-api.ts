@@ -1,3 +1,15 @@
+function errorMessage(status: number, payload: unknown): string {
+  if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
+    const message = payload.error.trim();
+    if (message.length > 0 && message.length <= 120) return message;
+  }
+  if (status === 400) return "请求格式无效";
+  if (status === 401) return "用户名或密码不正确";
+  if (status === 403) return "没有权限执行这个操作";
+  if (status === 413) return "请求内容过大";
+  return "服务器暂时无法完成请求";
+}
+
 export async function requestJson<T>(
   url: string,
   init?: { method?: string; body?: unknown; csrf?: string },
@@ -31,11 +43,7 @@ export async function requestJson<T>(
     payload = null;
   }
   if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
-        ? payload.error
-        : "请求失败";
-    throw new Error(message);
+    throw new Error(errorMessage(response.status, payload));
   }
   return payload as T;
 }
