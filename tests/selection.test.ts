@@ -6,10 +6,10 @@ const seed = [
   { id: 1, name: "折扣 50%", probability: 1000 },
   { id: 2, name: "盲盒", probability: 300 },
   { id: 3, name: "现金 RM50", probability: 500 },
-  { id: 4, name: "全套拼豆工具", probability: 5000 },
-  { id: 5, name: "折扣 5%", probability: 38200 },
-  { id: 6, name: "折扣 10%", probability: 15000 },
-  { id: 7, name: "谢谢惠顾", probability: 40000 },
+  { id: 4, name: "全套拼豆工具", probability: 3000 },
+  { id: 5, name: "折扣 5%", probability: 10000 },
+  { id: 6, name: "折扣 10%", probability: 5000 },
+  { id: 7, name: "谢谢惠顾", probability: 80200 },
 ];
 
 describe("weighted selection", () => {
@@ -43,10 +43,10 @@ describe("weighted selection", () => {
     expect(counts.get(2) ?? 0).toBeGreaterThan(10);
     expect(counts.get(2) ?? 0).toBeLessThan(160);
     expect(counts.get(1) ?? 0).toBeGreaterThan(80);
-    expect(counts.get(5) ?? 0).toBeGreaterThan(7000);
-    expect(counts.get(5) ?? 0).toBeLessThan(8300);
-    expect(counts.get(7) ?? 0).toBeGreaterThan(7400);
-    expect(counts.get(7) ?? 0).toBeLessThan(8600);
+    expect(counts.get(5) ?? 0).toBeGreaterThan(1600);
+    expect(counts.get(5) ?? 0).toBeLessThan(2500);
+    expect(counts.get(7) ?? 0).toBeGreaterThan(15400);
+    expect(counts.get(7) ?? 0).toBeLessThan(16800);
     resetRandomSourceForTests();
   });
 });

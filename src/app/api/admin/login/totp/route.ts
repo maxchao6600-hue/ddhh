@@ -10,7 +10,7 @@ import { readJson, totpSchema } from "@/lib/validation";
 export async function POST(request: Request) {
   await connection();
   try {
-    consumeRateLimit(clientKey("totp", await getClientIp()), 10, 15 * 60 * 1000);
+    await consumeRateLimit(clientKey("totp", await getClientIp()), 10, 15 * 60 * 1000);
     const body = totpSchema.parse(await readJson(request));
     const result = await completeTotpLogin(body.challengeId, body.code);
     const jar = await cookies();

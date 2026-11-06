@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const admin = await requireApiAdmin(request, true);
     const body = totpCodeSchema.parse(await readJson(request));
-    enableTotp(admin.id, admin.username, body.code);
+    await enableTotp(admin.id, admin.username, body.code);
     return json({ ok: true });
   } catch (error) {
     unstable_rethrow(error);

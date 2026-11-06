@@ -1,10 +1,22 @@
-name = "bead-prize-wheel"
+name = "ddhh"
+main = ".open-next/worker.js"
 compatibility_date = "2026-11-06"
-compatibility_flags = ["nodejs_compat"]
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+upload_source_maps = true
 
-# Replace database_id after `wrangler d1 create bead-prize-wheel`.
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[observability]
+enabled = true
+
+[[services]]
+binding = "WORKER_SELF_REFERENCE"
+service = "ddhh"
+
 [[d1_databases]]
 binding = "DB"
-database_name = "bead-prize-wheel"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "ddhh"
+database_id = "bee28c57-db8b-43db-b1df-65bc61569b1d"
 migrations_dir = "migrations"

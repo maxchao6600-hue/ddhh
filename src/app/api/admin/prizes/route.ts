@@ -9,9 +9,9 @@ export async function GET(request: Request) {
   await connection();
   try {
     await requireApiAdmin(request, false);
-    const settings = getSettings();
+    const settings = await getSettings();
     return json({
-      prizes: listPrizeRows().map(toAdminPrize),
+      prizes: (await listPrizeRows()).map(toAdminPrize),
       configVersion: settings.configVersion,
     });
   } catch (error) {
@@ -25,7 +25,7 @@ export async function PUT(request: Request) {
   try {
     const admin = await requireApiAdmin(request, true);
     const body = savePrizesSchema.parse(await readJson(request));
-    return json(savePrizes(admin.id, body));
+    return json(await savePrizes(admin.id, body));
   } catch (error) {
     unstable_rethrow(error);
     return toErrorResponse(error);

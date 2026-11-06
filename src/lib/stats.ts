@@ -15,16 +15,16 @@ function mapHistory(row: Record<string, unknown>): SpinHistoryRow {
   };
 }
 
-export function getStats(): StatsResponse {
-  const settings = getSettings();
-  const totalRow = getRow("SELECT COUNT(*) AS count FROM spin_records");
-  const winRow = getRow("SELECT COUNT(*) AS count FROM spin_records WHERE counts_as_win_snapshot = 1");
-  const distribution = allRows(
+export async function getStats(): Promise<StatsResponse> {
+  const settings = await getSettings();
+  const totalRow = await getRow("SELECT COUNT(*) AS count FROM spin_records");
+  const winRow = await getRow("SELECT COUNT(*) AS count FROM spin_records WHERE counts_as_win_snapshot = 1");
+  const distribution = (await allRows(
     `SELECT id, name, color, probability, is_active,
             (SELECT COUNT(*) FROM spin_records WHERE prize_id = wheel_prizes.id) AS spins
      FROM wheel_prizes
      ORDER BY display_order ASC, id ASC`,
-  ).map((row) => ({
+  )).map((row) => ({
     prizeId: asNumber(row.id),
     name: asString(row.name),
     color: asString(row.color),
@@ -32,23 +32,23 @@ export function getStats(): StatsResponse {
     isActive: asNumber(row.is_active) === 1,
     spins: asNumber(row.spins),
   }));
-  const orphans = allRows(
+  const orphans = (await allRows(
     `SELECT prize_id, prize_name_snapshot, COUNT(*) AS spins
      FROM spin_records
      WHERE prize_id NOT IN (SELECT id FROM wheel_prizes)
      GROUP BY prize_id, prize_name_snapshot
      ORDER BY spins DESC`,
-  ).map((row) => ({
+  )).map((row) => ({
     prizeId: asNumber(row.prize_id),
     name: asString(row.prize_name_snapshot),
     spins: asNumber(row.spins),
   }));
-  const recent = allRows(
+  const recent = (await allRows(
     `SELECT draw_id, prize_id, prize_name_snapshot, probability_snapshot, counts_as_win_snapshot, config_version, created_at
      FROM spin_records
      ORDER BY created_at DESC
      LIMIT 20`,
-  ).map(mapHistory);
+  )).map(mapHistory);
 
   return {
     totalSpins: totalRow ? asNumber(totalRow.count) : 0,
@@ -62,13 +62,13 @@ export function getStats(): StatsResponse {
   };
 }
 
-export function listSpins(limit = 30): SpinHistoryRow[] {
+export async function listSpins(limit = 30): Promise<SpinHistoryRow[]> {
   const safeLimit = Math.min(100, Math.max(1, limit));
-  return allRows(
+  return (await allRows(
     `SELECT draw_id, prize_id, prize_name_snapshot, probability_snapshot, counts_as_win_snapshot, config_version, created_at
      FROM spin_records
      ORDER BY created_at DESC
      LIMIT ?`,
     [safeLimit],
-  ).map(mapHistory);
+  )).map(mapHistory);
 }

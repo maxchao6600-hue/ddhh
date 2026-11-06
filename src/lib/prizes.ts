@@ -36,8 +36,8 @@ function mapPrize(row: Record<string, unknown>): PrizeRow {
   };
 }
 
-export function listPrizeRows(): PrizeRow[] {
-  return allRows("SELECT * FROM wheel_prizes ORDER BY display_order ASC, id ASC").map(mapPrize);
+export async function listPrizeRows(): Promise<PrizeRow[]> {
+  return (await allRows("SELECT * FROM wheel_prizes ORDER BY display_order ASC, id ASC")).map(mapPrize);
 }
 
 export function toAdminPrize(prize: PrizeRow): AdminPrize {
@@ -66,12 +66,13 @@ export function toPublicSegment(prize: PrizeRow): PublicSegment {
   };
 }
 
-export function visibleSegments(prizes = listPrizeRows()): PublicSegment[] {
-  return prizes.filter((prize) => prize.isActive && prize.probability > 0).map(toPublicSegment);
+export async function visibleSegments(prizes?: PrizeRow[]): Promise<PublicSegment[]> {
+  const rows = prizes ?? (await listPrizeRows());
+  return rows.filter((prize) => prize.isActive && prize.probability > 0).map(toPublicSegment);
 }
 
-export function getSettings(): AdminSettings {
-  const row = getRow("SELECT * FROM wheel_settings WHERE id = 1");
+export async function getSettings(): Promise<AdminSettings> {
+  const row = await getRow("SELECT * FROM wheel_settings WHERE id = 1");
   if (!row) throw new ApiError(500, "转盘设置不存在");
   return {
     wheelName: asString(row.wheel_name),
@@ -81,19 +82,22 @@ export function getSettings(): AdminSettings {
   };
 }
 
-export function getPublicWheel(): WheelResponse {
-  const settings = getSettings();
+export async function getPublicWheel(): Promise<WheelResponse> {
+  const settings = await getSettings();
   return {
     wheelName: settings.wheelName,
     isEnabled: settings.isEnabled,
     configVersion: settings.configVersion,
-    segments: visibleSegments(),
+    segments: await visibleSegments(),
   };
 }
 
 type SaveInput = z.infer<typeof savePrizesSchema>;
 
-export function savePrizes(adminId: string, input: SaveInput): { prizes: AdminPrize[]; configVersion: number; unchanged: boolean } {
+export async function savePrizes(
+  adminId: string,
+  input: SaveInput,
+): Promise<{ prizes: AdminPrize[]; configVersion: number; unchanged: boolean }> {
   const parsedRows = input.prizes.map((prize) => {
     const probability = parseProbabilityInput(prize.probability);
     if (probability === null) throw new ApiError(400, `「${prize.name}」的概率无效，请输入 0 到 100 之间、最多 3 位小数的数字`);
@@ -109,8 +113,8 @@ export function savePrizes(adminId: string, input: SaveInput): { prizes: AdminPr
     );
   }
 
-  return withTransaction(() => {
-    const existing = listPrizeRows();
+  return withTransaction(async () => {
+    const existing = await listPrizeRows();
     const existingIds = new Set(existing.map((prize) => prize.id));
     const seen = new Set<number>();
     for (const prize of parsedRows) {
@@ -148,7 +152,7 @@ export function savePrizes(adminId: string, input: SaveInput): { prizes: AdminPr
       })),
     );
     if (nextSignature === currentSignature) {
-      return { prizes: existing.map(toAdminPrize), configVersion: getSettings().configVersion, unchanged: true };
+      return { prizes: existing.map(toAdminPrize), configVersion: (await getSettings()).configVersion, unchanged: true };
     }
 
     const now = new Date().toISOString();
@@ -156,14 +160,16 @@ export function savePrizes(adminId: string, input: SaveInput): { prizes: AdminPr
     for (const id of deleteIds) {
       const previous = byId.get(id);
       if (previous && previous.probability !== 0) {
-        writeAudit(adminId, id, previous.probability, 0, now);
+        await writeAudit(adminId, id, previous.probability, 0, now);
       }
-      runSql("DELETE FROM wheel_prizes WHERE id = ?", [id]);
+      await runSql("DELETE FROM wheel_prizes WHERE id = ?", [id]);
     }
-    parsedRows.forEach((prize, index) => {
+    for (let index = 0; index < parsedRows.length; index += 1) {
+      const prize = parsedRows[index];
+      if (!prize) continue;
       const order = index + 1;
       if (prize.id === null) {
-        const inserted = runSql(
+        const inserted = await runSql(
           `INSERT INTO wheel_prizes
             (name, probability, color, display_order, is_active, counts_as_win, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -178,15 +184,15 @@ export function savePrizes(adminId: string, input: SaveInput): { prizes: AdminPr
             now,
           ],
         );
-        if (prize.probability !== 0) writeAudit(adminId, inserted.lastInsertRowid, 0, prize.probability, now);
-        return;
+        if (prize.probability !== 0) await writeAudit(adminId, inserted.lastInsertRowid, 0, prize.probability, now);
+        continue;
       }
       const previous = byId.get(prize.id);
       if (!previous) throw new ApiError(400, "包含不存在的奖品，请刷新后重试");
       if (previous.probability !== prize.probability) {
-        writeAudit(adminId, prize.id, previous.probability, prize.probability, now);
+        await writeAudit(adminId, prize.id, previous.probability, prize.probability, now);
       }
-      runSql(
+      await runSql(
         `UPDATE wheel_prizes
          SET name = ?, probability = ?, color = ?, display_order = ?, is_active = ?, counts_as_win = ?, updated_at = ?
          WHERE id = ?`,
@@ -201,14 +207,14 @@ export function savePrizes(adminId: string, input: SaveInput): { prizes: AdminPr
           prize.id,
         ],
       );
-    });
-    runSql("UPDATE wheel_settings SET config_version = config_version + 1, updated_at = ? WHERE id = 1", [now]);
-    return { prizes: listPrizeRows().map(toAdminPrize), configVersion: getSettings().configVersion, unchanged: false };
+    }
+    await runSql("UPDATE wheel_settings SET config_version = config_version + 1, updated_at = ? WHERE id = 1", [now]);
+    return { prizes: (await listPrizeRows()).map(toAdminPrize), configVersion: (await getSettings()).configVersion, unchanged: false };
   });
 }
 
-function writeAudit(adminId: string, prizeId: number, oldProbability: number, newProbability: number, now: string): void {
-  runSql(
+async function writeAudit(adminId: string, prizeId: number, oldProbability: number, newProbability: number, now: string): Promise<void> {
+  await runSql(
     `INSERT INTO probability_audit_logs
       (id, admin_id, prize_id, old_probability, new_probability, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -216,9 +222,9 @@ function writeAudit(adminId: string, prizeId: number, oldProbability: number, ne
   );
 }
 
-export function updateSettings(input: { wheelName: string; isEnabled: boolean }): AdminSettings {
+export async function updateSettings(input: { wheelName: string; isEnabled: boolean }): Promise<AdminSettings> {
   const parsed = settingsSchema.parse(input);
-  runSql("UPDATE wheel_settings SET wheel_name = ?, is_enabled = ?, updated_at = ? WHERE id = 1", [
+  await runSql("UPDATE wheel_settings SET wheel_name = ?, is_enabled = ?, updated_at = ? WHERE id = 1", [
     parsed.wheelName,
     parsed.isEnabled ? 1 : 0,
     new Date().toISOString(),
@@ -226,9 +232,9 @@ export function updateSettings(input: { wheelName: string; isEnabled: boolean })
   return getSettings();
 }
 
-export function listAudit(limit = 50): AuditRow[] {
+export async function listAudit(limit = 50): Promise<AuditRow[]> {
   const safeLimit = Math.min(100, Math.max(1, limit));
-  return allRows(
+  return (await allRows(
     `SELECT logs.id, logs.admin_id, admins.username AS admin_username, logs.prize_id,
             logs.old_probability, logs.new_probability, logs.created_at
      FROM probability_audit_logs logs
@@ -236,7 +242,7 @@ export function listAudit(limit = 50): AuditRow[] {
      ORDER BY logs.created_at DESC
      LIMIT ?`,
     [safeLimit],
-  ).map((row) => ({
+  )).map((row) => ({
     id: asString(row.id),
     adminId: asString(row.admin_id),
     adminUsername: asString(row.admin_username),

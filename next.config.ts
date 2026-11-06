@@ -38,8 +38,8 @@ if (!isDev) {
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  cacheComponents: true,
-  partialPrefetching: true,
+  // Cache Components hang on the Workers runtime because workerd's setTimeout
+  // cannot finish the Next.js staged render. The app still renders on demand.
   // 127.0.0.1 is a different origin from localhost. Without this, the dev
   // server blocks the page's requests and the browser reports "Failed to fetch".
   allowedDevOrigins: ["127.0.0.1"],

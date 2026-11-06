@@ -53,11 +53,12 @@ npm start
 `migrations/0001_init.sql` 和 `wrangler.toml` 可以直接用于 Cloudflare D1：
 
 ```powershell
-npx wrangler d1 create bead-prize-wheel
-npx wrangler d1 migrations apply bead-prize-wheel --remote
+npx wrangler d1 create ddhh
+npx wrangler d1 migrations apply ddhh --remote
+npm run deploy
 ```
 
-创建数据库后，把 `wrangler.toml` 里的 `database_id` 换成真实 ID。当前运行中的 Next.js 进程使用本机 SQLite，因为抽奖、会话和 Argon2 都在 Node.js 里执行。D1 迁移用来保存同一套表结构和初始概率。
+创建数据库后，把 `wrangler.toml` 里的 `database_id` 换成真实 ID。本地 `npm run dev` 继续使用本机 SQLite。Cloudflare Worker `ddhh` 使用同名 D1 数据库，部署前用上面的迁移命令建表，不会清空已有抽奖记录。
 
 ## 初始奖品
 
@@ -66,7 +67,7 @@ npx wrangler d1 migrations apply bead-prize-wheel --remote
 | 折扣 50% | 1% |
 | 盲盒 | 0.3% |
 | 现金 RM50 | 0.5% |
-| 全套拼豆工具 | 5% |
-| 折扣 5% | 38.2% |
-| 折扣 10% | 15% |
-| 谢谢惠顾 | 40% |
+| 全套拼豆工具 | 3% |
+| 折扣 5% | 10% |
+| 折扣 10% | 5% |
+| 谢谢惠顾 | 80.2% |

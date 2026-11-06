@@ -6,7 +6,7 @@ import { getPublicWheel } from "@/lib/prizes";
 export async function GET() {
   await connection();
   try {
-    return json(getPublicWheel());
+    return json(await getPublicWheel());
   } catch (error) {
     unstable_rethrow(error);
     return toErrorResponse(error);

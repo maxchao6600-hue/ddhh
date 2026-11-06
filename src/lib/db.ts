@@ -1,18 +1,44 @@
 import { mkdirSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 export type SqlValue = string | number | bigint | null | Uint8Array;
 export type SqlRow = Record<string, unknown>;
 
-let database: DatabaseSync | null = null;
+type SqliteDatabase = {
+  exec(sql: string): void;
+  prepare(sql: string): {
+    all(...params: SqlValue[]): unknown[];
+    get(...params: SqlValue[]): unknown;
+    run(...params: SqlValue[]): { changes: number | bigint; lastInsertRowid: number | bigint };
+  };
+  close(): void;
+};
+
+type D1Prepared = {
+  bind(...values: SqlValue[]): D1Prepared;
+  all(): Promise<{ results?: SqlRow[] }>;
+  first<T extends SqlRow>(): Promise<T | null>;
+  run(): Promise<{ meta?: { changes?: number; last_row_id?: number } }>;
+};
+
+type D1Database = {
+  prepare(sql: string): D1Prepared;
+};
+
+let database: SqliteDatabase | null = null;
 let openedPath: string | null = null;
+let queue: Promise<void> = Promise.resolve();
+let transactionDepth = 0;
+
+function onWorker(): boolean {
+  return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+}
 
 export function databasePath(): string {
   return process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "wheel.db");
 }
 
-export function getDb(): DatabaseSync {
+async function sqliteDb(): Promise<SqliteDatabase> {
   const file = databasePath();
   if (database && openedPath === file) return database;
   if (database) {
@@ -22,7 +48,9 @@ export function getDb(): DatabaseSync {
   if (file !== ":memory:") {
     mkdirSync(path.dirname(file), { recursive: true });
   }
-  const next = new DatabaseSync(file);
+  const specifier = "node:" + "sqlite";
+  const imported = (await import(specifier)) as { DatabaseSync: new (path: string) => SqliteDatabase };
+  const next = new imported.DatabaseSync(file);
   next.exec("PRAGMA foreign_keys = ON");
   next.exec("PRAGMA busy_timeout = 5000");
   if (file !== ":memory:") next.exec("PRAGMA journal_mode = WAL");
@@ -32,13 +60,21 @@ export function getDb(): DatabaseSync {
   return next;
 }
 
+async function cloudflareDb(): Promise<D1Database | null> {
+  if (!onWorker()) return null;
+  const imported = (await import("@opennextjs/cloudflare")) as {
+    getCloudflareContext: () => { env: { DB?: D1Database } };
+  };
+  return imported.getCloudflareContext().env.DB ?? null;
+}
+
 export function closeDb(): void {
   if (database) database.close();
   database = null;
   openedPath = null;
 }
 
-function migrate(current: DatabaseSync): void {
+function migrate(current: SqliteDatabase): void {
   current.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
     id TEXT PRIMARY KEY,
     applied_at TEXT NOT NULL
@@ -69,41 +105,89 @@ function migrate(current: DatabaseSync): void {
   }
 }
 
-export function allRows(sql: string, params: SqlValue[] = []): SqlRow[] {
-  const result = getDb().prepare(sql).all(...params);
-  return result.map((row) => {
-    if (!row || typeof row !== "object") throw new Error("数据库返回了无效记录");
-    return row as SqlRow;
-  });
+function enqueue<T>(fn: () => Promise<T>): Promise<T> {
+  if (transactionDepth > 0) return fn();
+  const run = queue.then(fn, fn);
+  queue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
-export function getRow(sql: string, params: SqlValue[] = []): SqlRow | null {
-  const row = getDb().prepare(sql).get(...params);
-  if (row === undefined) return null;
+function asRow(row: unknown): SqlRow {
   if (!row || typeof row !== "object") throw new Error("数据库返回了无效记录");
   return row as SqlRow;
 }
 
-export function runSql(sql: string, params: SqlValue[] = []): { changes: number; lastInsertRowid: number } {
-  const result = getDb().prepare(sql).run(...params);
-  return { changes: Number(result.changes), lastInsertRowid: Number(result.lastInsertRowid) };
+export async function allRows(sql: string, params: SqlValue[] = []): Promise<SqlRow[]> {
+  const remote = await cloudflareDb();
+  if (remote) {
+    const statement = params.length > 0 ? remote.prepare(sql).bind(...params) : remote.prepare(sql);
+    const result = await statement.all();
+    return (result.results ?? []).map(asRow);
+  }
+  return enqueue(async () => {
+    const result = (await sqliteDb()).prepare(sql).all(...params);
+    return result.map(asRow);
+  });
 }
 
-export function withTransaction<T>(fn: () => T): T {
-  const current = getDb();
-  current.exec("BEGIN IMMEDIATE");
-  try {
-    const value = fn();
-    current.exec("COMMIT");
-    return value;
-  } catch (error) {
-    try {
-      current.exec("ROLLBACK");
-    } catch {
-      // Preserve the error from the transaction body.
-    }
-    throw error;
+export async function getRow(sql: string, params: SqlValue[] = []): Promise<SqlRow | null> {
+  const remote = await cloudflareDb();
+  if (remote) {
+    const statement = params.length > 0 ? remote.prepare(sql).bind(...params) : remote.prepare(sql);
+    const row = await statement.first<SqlRow>();
+    return row ? asRow(row) : null;
   }
+  return enqueue(async () => {
+    const row = (await sqliteDb()).prepare(sql).get(...params);
+    if (row === undefined) return null;
+    return asRow(row);
+  });
+}
+
+export async function runSql(
+  sql: string,
+  params: SqlValue[] = [],
+): Promise<{ changes: number; lastInsertRowid: number }> {
+  const remote = await cloudflareDb();
+  if (remote) {
+    const statement = params.length > 0 ? remote.prepare(sql).bind(...params) : remote.prepare(sql);
+    const result = await statement.run();
+    return {
+      changes: Number(result.meta?.changes ?? 0),
+      lastInsertRowid: Number(result.meta?.last_row_id ?? 0),
+    };
+  }
+  return enqueue(async () => {
+    const result = (await sqliteDb()).prepare(sql).run(...params);
+    return { changes: Number(result.changes), lastInsertRowid: Number(result.lastInsertRowid) };
+  });
+}
+
+export async function withTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  const remote = await cloudflareDb();
+  if (remote) return fn();
+  return enqueue(async () => {
+    const current = await sqliteDb();
+    current.exec("BEGIN IMMEDIATE");
+    transactionDepth += 1;
+    try {
+      const value = await fn();
+      current.exec("COMMIT");
+      return value;
+    } catch (error) {
+      try {
+        current.exec("ROLLBACK");
+      } catch {
+        // Preserve the error from the transaction body.
+      }
+      throw error;
+    } finally {
+      transactionDepth -= 1;
+    }
+  });
 }
 
 export function asNumber(value: unknown): number {

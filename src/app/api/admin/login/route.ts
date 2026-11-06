@@ -10,7 +10,7 @@ import { loginSchema, readJson } from "@/lib/validation";
 export async function POST(request: Request) {
   await connection();
   try {
-    consumeRateLimit(clientKey("login", await getClientIp()), 10, 15 * 60 * 1000);
+    await consumeRateLimit(clientKey("login", await getClientIp()), 10, 15 * 60 * 1000);
     const body = loginSchema.parse(await readJson(request));
     const result = await startLogin(body.username, body.password);
     if (result.type === "totp") {

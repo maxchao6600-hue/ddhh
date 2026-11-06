@@ -13,7 +13,7 @@ if (password.length < 12 || password.length > 128 || !/[A-Za-z]/.test(password) 
   process.exit(1);
 }
 
-if (!needsSetup()) {
+if (!(await needsSetup())) {
   console.error("管理员已经存在。不会重置密码。");
   process.exit(1);
 }

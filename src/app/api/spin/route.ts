@@ -10,10 +10,10 @@ export async function POST(request: Request) {
   await connection();
   try {
     const body = parseSpinBody(await readJson(request));
-    const existing = peekSpin(body.drawId);
+    const existing = await peekSpin(body.drawId);
     if (existing) return json(existing);
-    consumeRateLimit(clientKey("spin", clientIpFromRequest(request)), 60, 60_000);
-    return json(executeSpin(body.drawId));
+    await consumeRateLimit(clientKey("spin", clientIpFromRequest(request)), 60, 60_000);
+    return json(await executeSpin(body.drawId));
   } catch (error) {
     unstable_rethrow(error);
     return toErrorResponse(error);

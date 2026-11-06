@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   await connection();
   try {
     await requireApiAdmin(request, false);
-    return json(getStats());
+    return json(await getStats());
   } catch (error) {
     unstable_rethrow(error);
     return toErrorResponse(error);

@@ -9,7 +9,7 @@ import { readJson, setupSchema } from "@/lib/validation";
 export async function GET() {
   await connection();
   try {
-    return json({ needsSetup: needsSetup() });
+    return json({ needsSetup: await needsSetup() });
   } catch (error) {
     unstable_rethrow(error);
     return toErrorResponse(error);
@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: Request) {
   await connection();
   try {
-    consumeRateLimit(clientKey("setup", await getClientIp()), 5, 60 * 60 * 1000);
+    await consumeRateLimit(clientKey("setup", await getClientIp()), 5, 60 * 60 * 1000);
     const body = setupSchema.parse(await readJson(request));
     await createInitialAdmin(body.username, body.password);
     return json({ ok: true });

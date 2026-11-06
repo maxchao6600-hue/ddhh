@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   try {
     await requireApiAdmin(request, false);
     const limit = Number(new URL(request.url).searchParams.get("limit") ?? 30);
-    return json({ spins: listSpins(Number.isFinite(limit) ? limit : 30) });
+    return json({ spins: await listSpins(Number.isFinite(limit) ? limit : 30) });
   } catch (error) {
     unstable_rethrow(error);
     return toErrorResponse(error);

@@ -6,11 +6,11 @@ describe("probability decimals", () => {
     expect(parseProbabilityInput("1")).toBe(1000);
     expect(parseProbabilityInput("0.3")).toBe(300);
     expect(parseProbabilityInput("0.5")).toBe(500);
+    expect(parseProbabilityInput("3")).toBe(3000);
     expect(parseProbabilityInput("10")).toBe(10000);
-    expect(parseProbabilityInput("38.2")).toBe(38200);
-    expect(parseProbabilityInput("15")).toBe(15000);
-    expect(parseProbabilityInput("35")).toBe(35000);
-    expect(1000 + 300 + 500 + 5000 + 38200 + 15000 + 40000).toBe(100000);
+    expect(parseProbabilityInput("5")).toBe(5000);
+    expect(parseProbabilityInput("80.2")).toBe(80200);
+    expect(1000 + 300 + 500 + 3000 + 10000 + 5000 + 80200).toBe(100000);
   });
 
   it("rejects negative values, values above 100, and extra precision", () => {

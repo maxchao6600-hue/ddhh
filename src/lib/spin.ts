@@ -46,21 +46,21 @@ function mapSpin(row: Record<string, unknown>, replayed: boolean): SpinResponse 
   };
 }
 
-export function peekSpin(drawId: string): SpinResponse | null {
-  const row = getRow("SELECT * FROM spin_records WHERE draw_id = ?", [drawId]);
+export async function peekSpin(drawId: string): Promise<SpinResponse | null> {
+  const row = await getRow("SELECT * FROM spin_records WHERE draw_id = ?", [drawId]);
   return row ? mapSpin(row, true) : null;
 }
 
-export function executeSpin(drawId: string): SpinResponse {
+export async function executeSpin(drawId: string): Promise<SpinResponse> {
   try {
-    return withTransaction(() => {
-      const existing = getRow("SELECT * FROM spin_records WHERE draw_id = ?", [drawId]);
+    return await withTransaction(async () => {
+      const existing = await getRow("SELECT * FROM spin_records WHERE draw_id = ?", [drawId]);
       if (existing) return mapSpin(existing, true);
 
-      const settings = getSettings();
+      const settings = await getSettings();
       if (!settings.isEnabled) throw new ApiError(403, "转盘暂时关闭，请稍后再来");
 
-      const prizes = listPrizeRows();
+      const prizes = await listPrizeRows();
       const active = prizes.filter((prize) => prize.isActive);
       const activeTotal = active.reduce((sum, prize) => sum + prize.probability, 0);
       if (activeTotal !== PROBABILITY_SCALE) {
@@ -74,7 +74,7 @@ export function executeSpin(drawId: string): SpinResponse {
       const landingBps = sweep < 2 ? 5000 : 1200 + randomIntBelow(7601);
       const segments = visible.map(toPublicSegment);
       const createdAt = new Date().toISOString();
-      runSql(
+      await runSql(
         `INSERT INTO spin_records (
            id, draw_id, prize_id, prize_name_snapshot, probability_snapshot,
            counts_as_win_snapshot, config_version, landing_ratio_bps, wheel_snapshot, created_at
@@ -92,13 +92,13 @@ export function executeSpin(drawId: string): SpinResponse {
           createdAt,
         ],
       );
-      const stored = getRow("SELECT * FROM spin_records WHERE draw_id = ?", [drawId]);
+      const stored = await getRow("SELECT * FROM spin_records WHERE draw_id = ?", [drawId]);
       if (!stored) throw new Error("抽奖结果没有写入");
       return mapSpin(stored, false);
     });
   } catch (error) {
     if (isUniqueConstraint(error)) {
-      const existing = peekSpin(drawId);
+      const existing = await peekSpin(drawId);
       if (existing) return existing;
     }
     throw error;

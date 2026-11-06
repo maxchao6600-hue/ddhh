@@ -5,10 +5,10 @@ const weights = [
   { id: 1, probability: 1000 },
   { id: 2, probability: 300 },
   { id: 3, probability: 500 },
-  { id: 4, probability: 5000 },
-  { id: 5, probability: 38200 },
-  { id: 6, probability: 15000 },
-  { id: 7, probability: 40000 },
+  { id: 4, probability: 3000 },
+  { id: 5, probability: 10000 },
+  { id: 6, probability: 5000 },
+  { id: 7, probability: 80200 },
 ];
 
 describe("wheel stop position", () => {

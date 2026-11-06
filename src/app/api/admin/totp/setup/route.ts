@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   await connection();
   try {
     const admin = await requireApiAdmin(request, true);
-    const setup = beginTotpSetup(admin.id, admin.username);
+    const setup = await beginTotpSetup(admin.id, admin.username);
     const qrDataUrl = await QRCode.toDataURL(setup.uri, { margin: 1, width: 280, errorCorrectionLevel: "M" });
     return json({ qrDataUrl, uri: setup.uri, secret: setup.secret });
   } catch (error) {

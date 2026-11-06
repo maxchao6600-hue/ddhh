@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     await requireApiAdmin(request, true);
     const jar = await cookies();
     const token = jar.get(SESSION_COOKIE)?.value;
-    if (token) revokeSession(token);
+    if (token) await revokeSession(token);
     jar.set(SESSION_COOKIE, "", sessionCookieOptions(0));
     return json({ ok: true });
   } catch (error) {

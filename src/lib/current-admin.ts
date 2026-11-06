@@ -10,7 +10,7 @@ export async function readSession(): Promise<SessionInfo | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return findSession(token);
+  return await findSession(token);
 }
 
 export async function requirePageAdmin(): Promise<SessionInfo> {
