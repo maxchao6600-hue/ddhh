@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Noto Sans SC", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: "Fraunces", "Songti SC", "Noto Serif SC", serif;
+  --font-fun: "ZCOOL KuaiLe", "PingFang SC", "Microsoft YaHei", cursive;
+  --color-ink: #1c140c;
+  --color-paper: #f6f1e8;
+  --color-gold: #e6b34d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+@keyframes float-bead {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+.bead-float {
+  animation: float-bead 7s ease-in-out infinite;
+}
+
+@keyframes pointer-tick {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  35% {
+    transform: translateX(-50%) rotate(14deg);
+  }
+  70% {
+    transform: translateX(-50%) rotate(-7deg);
+  }
+}
+
+.pointer-tick {
+  animation: pointer-tick 0.22s linear infinite;
+  transform-origin: 50% 0;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-pop {
+  animation: pop-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bead-float,
+  .pointer-tick,
+  .modal-pop {
+    animation: none;
+  }
+}

@@ -1,0 +1,10 @@
+name = "bead-prize-wheel"
+compatibility_date = "2026-11-06"
+compatibility_flags = ["nodejs_compat"]
+
+# Replace database_id after `wrangler d1 create bead-prize-wheel`.
+[[d1_databases]]
+binding = "DB"
+database_name = "bead-prize-wheel"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
