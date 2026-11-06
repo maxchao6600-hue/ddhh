@@ -13,9 +13,9 @@ npm install
 npm run dev
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)。第一次使用先打开 [http://localhost:3000/admin/setup](http://localhost:3000/admin/setup) 创建店主账号。账号只能创建一次，没有公开注册。
+打开 [http://localhost:3000](http://localhost:3000)。店主只能从 `/admin/login` 登录。网站没有公开注册页面，`/api/setup` 一律返回 403。
 
-也可以在服务器上创建，避免把初始化页面暴露到公网之后才设置密码：
+空数据库上的第一个店主账号只能在本机用下面的命令创建。如果已经有管理员，这条命令会拒绝执行，不会改密码，也不会再创建一个账号：
 
 ```powershell
 $env:ADMIN_USERNAME="owner"
@@ -27,7 +27,7 @@ npm run admin:create
 
 数据库文件默认是 `data/wheel.db`。可以用 `DATABASE_PATH` 改到持久磁盘。请限制这个文件的读取权限，里面有密码哈希和可选的两步验证密钥。
 
-忘记密码时，在能访问数据库文件的机器上删除 `admins` 和 `sessions` 表中的记录，抽奖历史会保留，然后重新初始化。
+网站没有自助找回密码。不要从网站或公开接口删除、重置现有管理员。
 
 ## 检查
 

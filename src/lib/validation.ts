@@ -38,18 +38,6 @@ export const settingsSchema = z.object({
   isEnabled: z.boolean(),
 });
 
-export const setupSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .regex(/^[A-Za-z0-9_]{3,32}$/, "用户名需要 3 到 32 位字母、数字或下划线"),
-  password: z
-    .string()
-    .min(12, "密码至少 12 位")
-    .max(128, "密码过长")
-    .refine((password) => /[A-Za-z]/.test(password) && /\d/.test(password), "密码至少包含一个字母和一个数字"),
-});
-
 export const loginSchema = z.object({
   username: z.string().trim().min(1, "请填写用户名").max(32),
   password: z.string().min(1, "请填写密码").max(128),

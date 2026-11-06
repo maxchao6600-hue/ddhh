@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestJson } from "@/lib/client-api";
 
-export function LoginForm({ created }: { created: boolean }) {
+export function LoginForm() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -48,7 +48,6 @@ export function LoginForm({ created }: { created: boolean }) {
       <form onSubmit={(event) => void onSubmit(event)} className="w-full max-w-md rounded-3xl bg-white p-6 shadow-sm sm:p-8">
         <p className="text-xs tracking-[0.22em] text-[#9a6b32]">ADMIN</p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl">店主登录</h1>
-        {created ? <p className="mt-3 text-sm text-[#067647]">管理员已创建，请登录。</p> : null}
         {challengeId ? (
           <label className="mt-6 block text-sm">
             验证码
@@ -91,9 +90,6 @@ export function LoginForm({ created }: { created: boolean }) {
         >
           {pending ? "请稍候…" : challengeId ? "验证并登录" : "登录"}
         </button>
-        <a href="/admin/setup" className="mt-4 block text-center text-sm text-[#8a6230]">
-          首次使用？初始化管理员
-        </a>
       </form>
     </main>
   );
